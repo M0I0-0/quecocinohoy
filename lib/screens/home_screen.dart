@@ -22,14 +22,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    );
+    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
   }
 
@@ -43,22 +37,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _agregarIngrediente() {
     final texto = _controller.text.trim();
     if (texto.isEmpty) return;
-
     final partes = texto.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
     for (final parte in partes) {
       if (!_ingredientes.contains(parte.toLowerCase())) {
-        setState(() {
-          _ingredientes.add(parte.toLowerCase());
-        });
+        setState(() => _ingredientes.add(parte.toLowerCase()));
       }
     }
     _controller.clear();
+    setState(() => _error = null);
   }
 
   void _eliminarIngrediente(String ingrediente) {
-    setState(() {
-      _ingredientes.remove(ingrediente);
-    });
+    setState(() => _ingredientes.remove(ingrediente));
   }
 
   Future<void> _buscarRecetas() async {
@@ -66,20 +56,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       setState(() => _error = 'Agrega al menos un ingrediente para continuar.');
       return;
     }
-
     setState(() => _error = null);
-
-    // Navegar a la pantalla de carga
     if (!mounted) return;
+
     final List<Recipe>? recetas = await Navigator.push<List<Recipe>>(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            LoadingScreen(ingredientes: _ingredientes),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, animation, __) => LoadingScreen(ingredientes: _ingredientes),
+        transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 350),
       ),
     );
 
@@ -87,18 +72,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
+          pageBuilder: (_, animation, __) =>
               ResultsScreen(recetas: recetas, ingredientesUsuario: _ingredientes),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(1.0, 0.0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: (_, animation, __, child) => SlideTransition(
+            position: Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+          transitionDuration: const Duration(milliseconds: 380),
         ),
       );
     } else if (recetas != null && recetas.isEmpty && mounted) {
@@ -109,50 +90,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  _buildHeader(),
-                  const SizedBox(height: 32),
-
-                  // Hero Section
-                  _buildHeroCard(),
-                  const SizedBox(height: 28),
-
-                  // Input de ingredientes
-                  _buildInputSection(),
-                  const SizedBox(height: 20),
-
-                  // Chips de ingredientes
-                  if (_ingredientes.isNotEmpty) ...[
-                    _buildChipsSection(),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // Error
-                  if (_error != null) ...[
-                    _buildErrorMessage(),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Botón principal
-                  _buildMainButton(),
-                  const SizedBox(height: 32),
-
-                  // Sugerencias rápidas
-                  _buildSuggestions(),
+      backgroundColor: AppColors.cream,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 22),
+                _buildHeader(),
+                const SizedBox(height: 36),
+                _buildHeroTitle(),
+                const SizedBox(height: 30),
+                _buildInputSection(),
+                if (_ingredientes.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _buildChipsSection(),
                 ],
-              ),
+                if (_error != null) ...[
+                  const SizedBox(height: 14),
+                  _buildErrorMessage(),
+                ],
+                const SizedBox(height: 28),
+                _buildMainButton(),
+                const SizedBox(height: 40),
+                _buildSuggestions(),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
         ),
@@ -164,87 +130,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Row(
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.orange.withOpacity(0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: AppColors.orange,
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: const Center(
-            child: Text('🍳', style: TextStyle(fontSize: 24)),
-          ),
+          child: const Center(child: Text('🍳', style: TextStyle(fontSize: 19))),
         ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '¿Qué cocino hoy?',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: 18,
-                    color: AppColors.orange,
-                  ),
-            ),
-            Text(
-              'Chef IA a tu servicio',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
+        const SizedBox(width: 10),
+        Text(
+          '¿Qué cocino hoy?',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: AppColors.textDark,
+                letterSpacing: -0.3,
+              ),
         ),
       ],
     );
   }
 
-  Widget _buildHeroCard() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.orange.withOpacity(0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cocina con lo\nque tienes 🥗',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: Colors.white,
-                        fontSize: 24,
-                        height: 1.3,
-                      ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Nuestra IA analiza tus ingredientes y te sugiere recetas deliciosas.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 13,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Text('🤖', style: TextStyle(fontSize: 60)),
-        ],
-      ),
+  Widget _buildHeroTitle() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '¿Con qué\ncocinamos\nhoy?',
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 42, height: 1.08),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Dinos qué tienes en casa y te sugerimos\nrecetas deliciosas al instante.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.65),
+        ),
+      ],
     );
   }
 
@@ -253,15 +172,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '¿Con qué ingredientes cuentas?',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 16),
+          'Tus ingredientes',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Escribe uno o varios separados por comas',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -269,15 +183,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 controller: _controller,
                 onSubmitted: (_) => _agregarIngrediente(),
                 textCapitalization: TextCapitalization.sentences,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'ej: tomate, cebolla, pollo...',
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: AppColors.orange,
-                  ),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textLight, size: 20),
                   suffixIcon: _controller.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: AppColors.textLight),
+                          icon: const Icon(Icons.clear, color: AppColors.textLight, size: 18),
                           onPressed: () => setState(() => _controller.clear()),
                         )
                       : null,
@@ -289,20 +201,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             GestureDetector(
               onTap: _agregarIngrediente,
               child: Container(
-                width: 54,
-                height: 54,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.orange.withOpacity(0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  color: AppColors.orange,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+                child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
               ),
             ),
           ],
@@ -318,44 +223,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Row(
           children: [
             Text(
-              'Mis ingredientes',
-              style: Theme.of(context).textTheme.titleMedium,
+              'Seleccionados',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w500, color: AppColors.textMedium),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.orange,
-                borderRadius: BorderRadius.circular(10),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+              decoration: BoxDecoration(color: AppColors.orange, borderRadius: BorderRadius.circular(8)),
               child: Text(
                 '${_ingredientes.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
               ),
             ),
             const Spacer(),
-            TextButton(
-              onPressed: () => setState(() => _ingredientes.clear()),
-              child: const Text(
+            GestureDetector(
+              onTap: () => setState(() => _ingredientes.clear()),
+              child: Text(
                 'Limpiar todo',
-                style: TextStyle(color: AppColors.textLight, fontSize: 12),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.orange, fontWeight: FontWeight.w500),
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
         Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: _ingredientes
-              .map(
-                (ing) => IngredientChip(
-                  label: ing,
-                  onDelete: () => _eliminarIngrediente(ing),
-                ),
-              )
+              .map((ing) => IngredientChip(label: ing, onDelete: () => _eliminarIngrediente(ing)))
               .toList(),
         ),
       ],
@@ -364,20 +265,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildErrorMessage() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.red.shade200),
+        color: const Color(0xFFFDF0EE),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEC4BC)),
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.red.shade400, size: 20),
+          const Icon(Icons.info_outline_rounded, color: Color(0xFFD94F3D), size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _error!,
-              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+              style: const TextStyle(color: Color(0xFFD94F3D), fontSize: 13, height: 1.4),
             ),
           ),
         ],
@@ -386,51 +287,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMainButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _buscarRecetas,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-        ).copyWith(
-          backgroundColor: WidgetStateProperty.all(Colors.transparent),
+    final bool active = _ingredientes.isNotEmpty;
+    return GestureDetector(
+      onTap: _buscarRecetas,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: active ? AppColors.orange : AppColors.beigeStrong,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: _ingredientes.isEmpty
-                ? LinearGradient(
-                    colors: [Colors.grey.shade300, Colors.grey.shade400],
-                  )
-                : AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: _ingredientes.isEmpty
-                ? []
-                : [
-                    BoxShadow(
-                      color: AppColors.orange.withOpacity(0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-          ),
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('✨', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 10),
-                Text(
-                  '¡A cocinar!',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 17),
-                ),
-              ],
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              active ? 'Buscar recetas' : 'Agrega ingredientes',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: active ? Colors.white : AppColors.textLight,
+                    fontSize: 16,
+                  ),
             ),
-          ),
+            if (active) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+            ],
+          ],
         ),
       ),
     );
@@ -438,55 +320,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildSuggestions() {
     final suggestions = [
-      ['🍅', 'tomate, cebolla, ajo'],
-      ['🍗', 'pollo, arroz, verduras'],
-      ['🥚', 'huevos, queso, jamón'],
-      ['🥑', 'aguacate, limón, sal'],
+      {'emoji': '🍅', 'label': 'Clásico', 'items': 'tomate, cebolla, ajo'},
+      {'emoji': '🍗', 'label': 'Proteína', 'items': 'pollo, arroz, verduras'},
+      {'emoji': '🥚', 'label': 'Desayuno', 'items': 'huevos, queso, jamón'},
+      {'emoji': '🥑', 'label': 'Vegano', 'items': 'aguacate, limón, sal'},
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Combinaciones populares',
-          style: Theme.of(context).textTheme.titleMedium,
+          'Ideas rápidas',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
-        ...suggestions.map(
-          (s) => GestureDetector(
-            onTap: () {
-              final partes = s[1].split(',').map((e) => e.trim());
-              for (final p in partes) {
-                if (!_ingredientes.contains(p)) {
-                  setState(() => _ingredientes.add(p));
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.65,
+          children: suggestions.map((s) {
+            return GestureDetector(
+              onTap: () {
+                final partes = (s['items'] as String).split(',').map((e) => e.trim());
+                for (final p in partes) {
+                  if (!_ingredientes.contains(p)) setState(() => _ingredientes.add(p));
                 }
-              }
-            },
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEEEEEE)),
-              ),
-              child: Row(
-                children: [
-                  Text(s[0], style: const TextStyle(fontSize: 22)),
-                  const SizedBox(width: 12),
-                  Text(
-                    s[1],
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textDark,
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(s['emoji'] as String, style: const TextStyle(fontSize: 26)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s['label'] as String,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.add_circle_outline_rounded,
-                      color: AppColors.orange, size: 22),
-                ],
+                        Text(
+                          s['items'] as String,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          }).toList(),
         ),
       ],
     );
