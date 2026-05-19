@@ -22,18 +22,18 @@ class GeminiService {
     final ingredientesStr = ingredientes.join(', ');
 
     final prompt = '''
-Eres un chef experto y creativo. El usuario tiene los siguientes ingredientes disponibles: $ingredientesStr.
+Eres un chef profesional con años de experiencia. El usuario tiene estos ingredientes disponibles: $ingredientesStr.
 
-Tu tarea es sugerir exactamente 4 recetas deliciosas que se puedan preparar (o casi preparar) con esos ingredientes.
+Sugiere exactamente 4 recetas que se puedan preparar con esos ingredientes.
 
-IMPORTANTE: Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin bloques de código, sin explicaciones. Solo el JSON.
+IMPORTANTE: Responde ÚNICAMENTE con un JSON válido. Sin texto adicional, sin bloques de código, solo el JSON puro.
 
-El JSON debe tener esta estructura exacta:
+Estructura exacta del JSON:
 {
   "recetas": [
     {
       "nombre": "Nombre del platillo",
-      "descripcion": "Descripción apetitosa en 1-2 oraciones",
+      "descripcion": "Descripción apetitosa y evocadora en 2 oraciones que despierte el apetito.",
       "emoji": "🍳",
       "tiempoPreparacion": "25 min",
       "dificultad": "Fácil",
@@ -41,22 +41,24 @@ El JSON debe tener esta estructura exacta:
       "ingredientesDisponibles": ["ingrediente1", "ingrediente2"],
       "ingredientesFaltantes": ["ingrediente_que_falta"],
       "instrucciones": [
-        "Paso 1: ...",
-        "Paso 2: ...",
-        "Paso 3: ..."
+        "Prepara los ingredientes: Lava y corta el tomate en cubos medianos de aproximadamente 1 cm. Pica finamente la cebolla y el ajo. Reserva todo en recipientes separados para tener la mise en place lista antes de encender el fuego.",
+        "Calienta la sartén: Coloca una sartén grande a fuego medio-alto. Agrega 2 cucharadas de aceite de oliva y espera a que esté bien caliente (verás que el aceite empieza a brillar y a moverse). Esto es clave para que los ingredientes sellen correctamente.",
+        "Sofríe la base: Añade la cebolla y sofríe durante 3-4 minutos, moviendo ocasionalmente, hasta que esté traslúcida y ligeramente dorada en los bordes. Agrega el ajo y cocina 1 minuto más, cuidando que no se queme porque amargaría el plato."
       ]
     }
   ]
 }
 
-Reglas:
-- porcentajeCoincidencia debe ser un número entero entre 0 y 100
-- ingredientesDisponibles son los ingredientes del usuario que usa esta receta
-- ingredientesFaltantes son ingredientes opcionales o que el usuario no tiene (puede ser lista vacía)
-- instrucciones deben ser claras y detalladas (mínimo 4 pasos)
-- Los emojis deben ser representativos del platillo
-- Las recetas deben ser variadas (no todas iguales en estilo)
-- Escribe TODO en español
+Reglas IMPORTANTES para las instrucciones:
+- Mínimo 6 pasos por receta, idealmente 7-8 pasos
+- Cada paso debe ser descriptivo y explicar el POR QUÉ de la técnica, no solo el qué
+- Incluir tiempos exactos de cocción, temperaturas cuando aplique (fuego alto/medio/bajo)
+- Describir señales visuales, de olor o textura para saber que el paso está listo (ej: "hasta que esté dorado", "cuando suelte el aroma", "hasta que la salsa espese y cubra el dorso de una cuchara")
+- Mencionar cantidades aproximadas cuando sea relevante
+- El último paso debe incluir cómo presentar y servir el platillo
+- porcentajeCoincidencia: número entero 0-100
+- Las recetas deben ser variadas en estilo y técnica
+- Escribe TODO en español, con lenguaje cálido y cercano
 ''';
 
     final response = await http.post(
@@ -77,8 +79,8 @@ Reglas:
             'content': prompt,
           },
         ],
-        'temperature': 0.7,
-        'max_tokens': 4096,
+        'temperature': 0.75,
+        'max_tokens': 8192,
         'response_format': {'type': 'json_object'},
       }),
     );

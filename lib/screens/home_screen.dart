@@ -4,6 +4,9 @@ import '../widgets/ingredient_chip.dart';
 import '../models/recipe.dart';
 import 'loading_screen.dart';
 import 'results_screen.dart';
+import 'recipe_detail_screen.dart';
+import '../widgets/food_image_helper.dart';
+import '../widgets/recipe_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +21,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   String? _error;
+  String _selectedPopularTag = 'Todo';
+
+  // Favorites global state in HomeScreen
+  final Set<Recipe> _favoritos = {};
+
+  // State to simulate bottom navigation selection (0 = Home/Search, 1 = Favorites)
+  int _currentNavIndex = 0;
+
+  // Fully defined mock recipes for Trending Recipes to allow instant details navigation!
+  late List<Recipe> _trendingRecipes;
 
   @override
   void initState() {
@@ -25,6 +38,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
+    _initTrendingRecipes();
+  }
+
+  void _initTrendingRecipes() {
+    _trendingRecipes = [
+      Recipe(
+        nombre: 'Whole30 Chicken Enchilada Meatballs',
+        descripcion: 'Deliciosas albóndigas de pollo bañadas en una salsa de enchilada casera y especias naturales.',
+        emoji: '🍗',
+        porcentajeCoincidencia: 95,
+        ingredientesDisponibles: ['pollo', 'cebolla', 'ajo', 'tomate'],
+        ingredientesFaltantes: ['cilantro', 'comino', 'orégano'],
+        instrucciones: [
+          'Prepara las albóndigas: En un bol grande, mezcla 500g de pollo molido con una cebolla finamente picada, dos dientes de ajo picados, sal y pimienta al gusto. Forma bolitas uniformes de unos 3 cm.',
+          'Sella la carne: Calienta una sartén grande a fuego medio-alto con 2 cucharadas de aceite de oliva. Cocina las albóndigas durante 3-4 minutos por lado hasta que estén perfectamente selladas y doradas en la superficie.',
+          'Prepara la salsa casera: Licúa 3 tomates grandes cocidos, 1 diente de ajo, 1 cucharadita de comino y sal. Vierte esta mezcla sobre las albóndigas en la sartén.',
+          'Cocción lenta aromática: Reduce el fuego a medio-bajo, tapa la sartén y deja cocinar a fuego lento durante 15 minutos para que la carne absorba los jugos y se cocine por completo en su interior.',
+          'Sirve y decora: Apaga el fuego, espolvorea cilantro fresco picado por encima y sirve caliente con rebanadas de aguacate para un toque cremoso espectacular.'
+        ],
+        tiempoPreparacion: '45 min',
+        dificultad: 'Media',
+      ),
+      Recipe(
+        nombre: 'Spring Roll Grilled Chicken Salad',
+        descripcion: 'Una ensalada fresca y crujiente con tiras de pollo a la parrilla y un aderezo de cacahuate sutil.',
+        emoji: '🥗',
+        porcentajeCoincidencia: 88,
+        ingredientesDisponibles: ['pollo', 'lechuga', 'aguacate', 'limón'],
+        ingredientesFaltantes: ['cacahuate', 'repollo morado', 'zanahoria'],
+        instrucciones: [
+          'Cocina el pollo: Sazona las pechugas de pollo con sal, pimienta y ajo en polvo. Ásalas a fuego medio-alto en una plancha caliente durante 6 minutos por lado hasta marcar las líneas de la parrilla.',
+          'Prepara la base crujiente: Pica finamente repollo morado, zanahorias en julianas y lechuga fresca. Lava y desinfecta todo antes de mezclarlo en una ensaladera grande.',
+          'Elabora el aderezo de cacahuate: Mezcla 2 cucharadas de mantequilla de cacahuate natural con el jugo de 1 limón, un toque de agua tibia, sal y salsa de soja hasta emulsionar completamente.',
+          'Ensambla la ensalada: Corta el pollo en tiras diagonales finas. Agrégalo a la ensaladera sobre la base de vegetales frescos.',
+          'Adereza y sirve: Vierte el aderezo uniformemente, esparce cacahuates triturados encima para aportar textura crujiente y sirve inmediatamente.'
+        ],
+        tiempoPreparacion: '15 min',
+        dificultad: 'Fácil',
+      ),
+      Recipe(
+        nombre: 'Greek-Inspired Feta Salad',
+        descripcion: 'Ensalada de estilo mediterráneo con queso feta premium, olivas y aderezo rústico.',
+        emoji: '🧀',
+        porcentajeCoincidencia: 82,
+        ingredientesDisponibles: ['queso', 'tomate', 'cebolla'],
+        ingredientesFaltantes: ['aceitunas negras', 'pepino', 'aceite de oliva'],
+        instrucciones: [
+          'Corta los vegetales: Corta 2 tomates maduros en cubos grandes, 1 pepino sin semillas en medias lunas y 1/2 cebolla morada en plumas delgadas para mantener la textura clásica.',
+          'Trocea el queso feta: Corta el queso feta premium en cubos medianos de 1.5 cm cuidando que no se desmoronen demasiado.',
+          'Prepara la vinagreta rústica: En un frasco pequeño, agita enérgicamente 3 cucharadas de aceite de oliva virgen extra con 1 cucharada de vinagre de vino tinto, sal, pimienta negra molida y orégano seco.',
+          'Integra los ingredientes: En un bol amplio, coloca los vegetales picados, añade un puñado de aceitunas negras deshuesadas y vierte la vinagreta rústica, mezclando con movimientos envolventes sutiles.',
+          'Presenta el platillo: Corona la ensalada con los cubos de queso feta por encima, rocía unas gotas extra de aceite de oliva y sirve con pan pita crujiente.'
+        ],
+        tiempoPreparacion: '20 min',
+        dificultad: 'Fácil',
+      )
+    ];
   }
 
   @override
@@ -72,8 +142,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (_, animation, __) =>
-              ResultsScreen(recetas: recetas, ingredientesUsuario: _ingredientes),
+          pageBuilder: (_, animation, __) => ResultsScreen(
+            recetas: recetas,
+            ingredientesUsuario: _ingredientes,
+            favoritos: _favoritos,
+            onToggleFavorite: (recipe, isFav) {
+              setState(() {
+                if (isFav) {
+                  if (!_favoritos.any((r) => r.nombre == recipe.nombre)) {
+                    _favoritos.add(recipe);
+                  }
+                } else {
+                  _favoritos.removeWhere((r) => r.nombre == recipe.nombre);
+                }
+              });
+            },
+          ),
           transitionsBuilder: (_, animation, __, child) => SlideTransition(
             position: Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero)
                 .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
@@ -81,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           transitionDuration: const Duration(milliseconds: 380),
         ),
-      );
+      ).then((_) => setState(() {}));
     } else if (recetas != null && recetas.isEmpty && mounted) {
       setState(() => _error = 'No se encontraron recetas. Intenta con otros ingredientes.');
     }
@@ -91,77 +175,224 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.cream,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 22),
-                _buildHeader(),
-                const SizedBox(height: 36),
-                _buildHeroTitle(),
-                const SizedBox(height: 30),
-                _buildInputSection(),
-                if (_ingredientes.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  _buildChipsSection(),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 14),
-                  _buildErrorMessage(),
-                ],
-                const SizedBox(height: 28),
-                _buildMainButton(),
-                const SizedBox(height: 40),
-                _buildSuggestions(),
-                const SizedBox(height: 32),
-              ],
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120), // Extra padding bottom to prevent floating nav overlap
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeaderSection(),
+                    const SizedBox(height: 24),
+                    
+                    // Conditionally show either Search/Home View OR Favorites View!
+                    if (_currentNavIndex == 0)
+                      _buildHomeView()
+                    else
+                      _buildFavoritesView(),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          
+          // Custom Floating Bottom Navigation Bar (Volt, Home, Favorites!)
+          _buildFloatingBottomNavBar(),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Row(
+  // Home View: Includes Input, Chips, Popular Tags, and Trending Recipes
+  Widget _buildHomeView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.orange,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Center(child: Text('🍳', style: TextStyle(fontSize: 19))),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          '¿Qué cocino hoy?',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: AppColors.textDark,
-                letterSpacing: -0.3,
-              ),
-        ),
+        _buildInputSection(),
+        if (_ingredientes.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _buildChipsSection(),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: 14),
+          _buildErrorMessage(),
+        ],
+        const SizedBox(height: 20),
+        _buildMainButton(),
+        const SizedBox(height: 28),
+        _buildPopularTagsSection(),
+        const SizedBox(height: 28),
+        _buildTrendingRecipesSection(),
       ],
     );
   }
 
-  Widget _buildHeroTitle() {
+  // Favorites View: Shows a clean list of favorited recipes or a beautiful empty state
+  Widget _buildFavoritesView() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '¿Con qué\ncocinamos\nhoy?',
-          style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 42, height: 1.08),
+          'Mis Favoritos',
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontSize: 26,
+                letterSpacing: -0.5,
+              ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Text(
-          'Dinos qué tienes en casa y te sugerimos\nrecetas deliciosas al instante.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.65),
+          'Recetas que has guardado para preparar luego.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 24),
+        if (_favoritos.isEmpty)
+          _buildFavoritesEmptyState()
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _favoritos.length,
+            itemBuilder: (context, index) {
+              final recipe = _favoritos.elementAt(index);
+              return RecipeCard(
+                recipe: recipe,
+                isFavorite: true,
+                onToggleFavorite: () {
+                  setState(() {
+                    _favoritos.removeWhere((r) => r.nombre == recipe.nombre);
+                  });
+                },
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => RecipeDetailScreen(
+                        recipe: recipe,
+                        ingredientesUsuario: _ingredientes,
+                        isFavorite: true,
+                        onToggleFavorite: (isFav) {
+                          setState(() {
+                            if (isFav) {
+                              if (!_favoritos.any((r) => r.nombre == recipe.nombre)) {
+                                _favoritos.add(recipe);
+                              }
+                            } else {
+                              _favoritos.removeWhere((r) => r.nombre == recipe.nombre);
+                            }
+                          });
+                        },
+                      ),
+                      transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                        child: child,
+                      ),
+                      transitionDuration: const Duration(milliseconds: 380),
+                    ),
+                  );
+                  // Refresh favorite state when returning to this tab
+                  setState(() {});
+                },
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFavoritesEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border, width: 1.2),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            '❤️',
+            style: TextStyle(fontSize: 48),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Tu recetario está vacío',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Guarda recetas presionando el icono de corazón en los detalles de cualquier platillo.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _currentNavIndex = 0; // Go back to Search/Home view
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.volt,
+              foregroundColor: AppColors.darkCharcoal,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text(
+              'Explorar recetas',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '¡Buenos días!',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textMedium,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Elizabeth Brianni',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+            ),
+          ],
+        ),
+        // Stylized user avatar
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.border, width: 1.5),
+            image: const DecorationImage(
+              image: NetworkImage('https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop'),
+              fit: BoxFit.cover,
+            ),
+          ),
         ),
       ],
     );
@@ -172,8 +403,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Tus ingredientes',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          '¿Qué tienes en tu refrigerador?',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
         ),
         const SizedBox(height: 10),
         Row(
@@ -185,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 textCapitalization: TextCapitalization.sentences,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'ej: tomate, cebolla, pollo...',
+                  hintText: 'ej. pollo, ajo, tomate...',
                   prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textLight, size: 20),
                   suffixIcon: _controller.text.isNotEmpty
                       ? IconButton(
@@ -197,15 +431,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 onChanged: (_) => setState(() {}),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: _agregarIngrediente,
               child: Container(
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.orange,
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.darkCharcoal,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
               ),
@@ -222,31 +456,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       children: [
         Row(
           children: [
-            Text(
-              'Seleccionados',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w500, color: AppColors.textMedium),
+            const Text(
+              'Ingredientes seleccionados',
+              style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textMedium, fontSize: 13),
             ),
             const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-              decoration: BoxDecoration(color: AppColors.orange, borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: AppColors.darkCharcoal,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Text(
                 '${_ingredientes.length}',
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
               ),
             ),
             const Spacer(),
             GestureDetector(
               onTap: () => setState(() => _ingredientes.clear()),
-              child: Text(
+              child: const Text(
                 'Limpiar todo',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.orange, fontWeight: FontWeight.w500),
+                style: TextStyle(color: AppColors.orange, fontWeight: FontWeight.w600, fontSize: 13),
               ),
             ),
           ],
@@ -268,17 +499,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFFDF0EE),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFEEC4BC)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFFD94F3D), size: 18),
+          const Icon(Icons.info_outline_rounded, color: AppColors.errorRed, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _error!,
-              style: const TextStyle(color: Color(0xFFD94F3D), fontSize: 13, height: 1.4),
+              style: const TextStyle(color: AppColors.errorRed, fontSize: 13, height: 1.4, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -295,22 +526,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: active ? AppColors.orange : AppColors.beigeStrong,
+          color: active ? AppColors.darkCharcoal : AppColors.beigeStrong,
           borderRadius: BorderRadius.circular(16),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: AppColors.darkCharcoal.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : [],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              active ? 'Buscar recetas' : 'Agrega ingredientes',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: active ? Colors.white : AppColors.textLight,
-                    fontSize: 16,
-                  ),
+              active ? 'Generar recetas con IA' : 'Agrega ingredientes arriba',
+              style: TextStyle(
+                color: active ? AppColors.volt : AppColors.textLight,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             if (active) ...[
               const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+              const Icon(Icons.auto_awesome, color: AppColors.volt, size: 18),
             ],
           ],
         ),
@@ -318,74 +559,379 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSuggestions() {
-    final suggestions = [
-      {'emoji': '🍅', 'label': 'Clásico', 'items': 'tomate, cebolla, ajo'},
-      {'emoji': '🍗', 'label': 'Proteína', 'items': 'pollo, arroz, verduras'},
-      {'emoji': '🥚', 'label': 'Desayuno', 'items': 'huevos, queso, jamón'},
-      {'emoji': '🥑', 'label': 'Vegano', 'items': 'aguacate, limón, sal'},
+  // popular Tags section from Figma mockup (Selected tags add ingredients automatically!)
+  Widget _buildPopularTagsSection() {
+    final tags = [
+      {'name': 'Todo', 'ingredients': <String>[]},
+      {'name': 'Saludable', 'ingredients': ['pollo', 'aguacate', 'limón']},
+      {'name': 'Italiano', 'ingredients': ['tomate', 'pasta', 'ajo', 'queso']},
+      {'name': 'Rápido', 'ingredients': ['huevos', 'queso', 'jamón']},
+      {'name': 'Vegano', 'ingredients': ['aguacate', 'limón', 'cebolla', 'tomate']},
+      {'name': 'Carnes', 'ingredients': ['carne', 'ajo', 'cebolla']},
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Ideas rápidas',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          'Filtros Rápidos',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
         ),
         const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.65,
-          children: suggestions.map((s) {
-            return GestureDetector(
+        SizedBox(
+          height: 38,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: tags.length,
+            itemBuilder: (context, index) {
+              final tag = tags[index];
+              final isSelected = _selectedPopularTag == tag['name'];
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedPopularTag = tag['name'] as String;
+                      if (tag['name'] != 'Todo') {
+                        final tagIngs = tag['ingredients'] as List<String>;
+                        for (final ing in tagIngs) {
+                          if (!_ingredientes.contains(ing)) {
+                            _ingredientes.add(ing);
+                          }
+                        }
+                        _error = null;
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.volt : AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? AppColors.volt : AppColors.border,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        tag['name'] as String,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? AppColors.darkCharcoal : AppColors.textMedium,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // trending Recipes horizontally from Figma mockup (NOW WITH INSTANT DETAILED VIEWS!)
+  Widget _buildTrendingRecipesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Recetas en Tendencia',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+            ),
+            const Text(
+              'Ver todas',
+              style: TextStyle(color: AppColors.textMedium, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 236,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _trendingRecipes.length,
+            clipBehavior: Clip.none,
+            itemBuilder: (context, index) {
+              final recipe = _trendingRecipes[index];
+              final imageUrl = FoodImageHelper.getFoodImage(recipe.nombre);
+              final isFav = _favoritos.any((r) => r.nombre == recipe.nombre);
+              
+              // Deterministic ratings
+              final double rating = 4.5 + (index * 0.15);
+
+              return GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => RecipeDetailScreen(
+                        recipe: recipe,
+                        ingredientesUsuario: _ingredientes,
+                        isFavorite: isFav,
+                        onToggleFavorite: (isFavNow) {
+                          setState(() {
+                            if (isFavNow) {
+                              if (!_favoritos.any((r) => r.nombre == recipe.nombre)) {
+                                _favoritos.add(recipe);
+                              }
+                            } else {
+                              _favoritos.removeWhere((r) => r.nombre == recipe.nombre);
+                            }
+                          });
+                        },
+                      ),
+                      transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                        child: child,
+                      ),
+                      transitionDuration: const Duration(milliseconds: 380),
+                    ),
+                  );
+                  // Refresh favorite state when returning to home
+                  setState(() {});
+                },
+                child: Container(
+                  width: 200,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.border, width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Food cover photo
+                      Stack(
+                        children: [
+                          Image.network(
+                            imageUrl,
+                            height: 120,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                          // Heart Favorite Button
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isFav) {
+                                    _favoritos.removeWhere((r) => r.nombre == recipe.nombre);
+                                  } else {
+                                    if (!_favoritos.any((r) => r.nombre == recipe.nombre)) {
+                                      _favoritos.add(recipe);
+                                    }
+                                  }
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                  size: 13,
+                                  color: isFav ? Colors.red : AppColors.textDark,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Match Badge
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.darkCharcoal,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${recipe.porcentajeCoincidencia}% Match',
+                                style: const TextStyle(
+                                  color: AppColors.volt,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Text Info
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recipe.nombre,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textDark,
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Por Chef IA',
+                              style: TextStyle(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 8),
+                            // Stars & Duration
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star_rounded, color: Colors.amber, size: 12),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      rating.toStringAsFixed(1),
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.access_time_rounded, color: AppColors.textLight, size: 11),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      recipe.tiempoPreparacion,
+                                      style: const TextStyle(fontSize: 10, color: AppColors.textMedium, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Floating Bottom Navigation Bar (Volt, Home, Favorites! NO PROFILE, NO COMPASS!)
+  Widget _buildFloatingBottomNavBar() {
+    return Positioned(
+      bottom: 24,
+      left: 24,
+      right: 24,
+      child: Container(
+        height: 72,
+        decoration: BoxDecoration(
+          color: AppColors.darkCharcoal,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Home / Buscar Tab
+            _buildNavItem(0, Icons.home_filled, 'Inicio'),
+            
+            // Central green/volt floating button (triggers recipe generation)
+            GestureDetector(
               onTap: () {
-                final partes = (s['items'] as String).split(',').map((e) => e.trim());
-                for (final p in partes) {
-                  if (!_ingredientes.contains(p)) setState(() => _ingredientes.add(p));
+                // Focus back to input
+                FocusScope.of(context).unfocus();
+                // Return to home tab
+                setState(() => _currentNavIndex = 0);
+                // If ingredients are added, search!
+                if (_ingredientes.isNotEmpty) {
+                  _buscarRecetas();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('¡Agrega ingredientes primero para cocinar con IA!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                 }
               },
               child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: AppColors.volt,
+                  shape: BoxShape.circle,
                 ),
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(s['emoji'] as String, style: const TextStyle(fontSize: 26)),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s['label'] as String,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-                        ),
-                        Text(
-                          s['items'] as String,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ],
+                child: const Icon(
+                  Icons.restaurant_menu_rounded,
+                  color: AppColors.darkCharcoal,
+                  size: 24,
                 ),
               ),
-            );
-          }).toList(),
+            ),
+            
+            // Favorites Tab (Heart)
+            _buildNavItem(1, Icons.favorite_rounded, 'Favoritos'),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _currentNavIndex == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentNavIndex = index;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        child: Icon(
+          icon,
+          color: isSelected ? AppColors.volt : Colors.white.withOpacity(0.5),
+          size: 26,
+        ),
+      ),
     );
   }
 }
