@@ -1,27 +1,45 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../models/recipe.dart';
 
-class GeminiService {
-  static const String _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  static const String _model = 'llama-3.3-70b-versatile';
+void main() async {
+  print('--- Iniciando prueba Pura de API de Groq ---');
 
-  static String _getApiKey() {
-    final apiKey = dotenv.env['GROQ_API_KEY'] ?? '';
-    if (apiKey.isEmpty || apiKey == 'TU_API_KEY_AQUI') {
-      throw Exception(
-        'API Key no configurada. Por favor edita el archivo .env y agrega tu GROQ_API_KEY.',
-      );
+  // 1. Leer el API Key directamente de .env
+  String apiKey = '';
+  try {
+    final envFile = File('.env');
+    if (!await envFile.exists()) {
+      print('Error: El archivo .env no existe en la raíz del proyecto.');
+      return;
     }
-    return apiKey;
+    final lines = await envFile.readAsLines();
+    for (var line in lines) {
+      if (line.trim().startsWith('GROQ_API_KEY=')) {
+        apiKey = line.split('GROQ_API_KEY=')[1].trim();
+        break;
+      }
+    }
+  } catch (e) {
+    print('Error al leer .env: $e');
+    return;
   }
 
-  static Future<List<Recipe>> buscarRecetas(List<String> ingredientes) async {
-    final apiKey = _getApiKey();
-    final ingredientesStr = ingredientes.join(', ');
+  if (apiKey.isEmpty || apiKey == 'TU_API_KEY_AQUI') {
+    print('Error: GROQ_API_KEY no encontrada en .env');
+    return;
+  }
 
-    final prompt = '''
+  print('API Key cargada (longitud: ${apiKey.length}).');
+
+  final ingredientes = [
+    'harina', 'aceite', 'sal', 'aceituna', 'cebolla', 
+    'champiñones', 'tomate', 'queso', 'jamón', 'brócoli', 'ajo'
+  ];
+  final ingredientesStr = ingredientes.join(', ');
+  print('Ingredientes a enviar: $ingredientesStr\n');
+
+  final prompt = '''
 Eres un chef profesional con años de experiencia. El usuario tiene estos ingredientes disponibles en su cocina: $ingredientesStr.
 
 Sugiere exactamente 4 recetas creativas y deliciosas que utilicen o incorporen estos ingredientes.
@@ -64,14 +82,20 @@ Reglas IMPORTANTES para las instrucciones:
 - Escribe TODO en español, con lenguaje cálido y cercano
 ''';
 
+  final baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  final model = 'llama-3.1-8b-instant';
+
+  print('Llamando a Groq API con modelo: $model...');
+  
+  try {
     final response = await http.post(
-      Uri.parse(_baseUrl),
+      Uri.parse(baseUrl),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $apiKey',
       },
       body: jsonEncode({
-        'model': _model,
+        'model': model,
         'messages': [
           {
             'role': 'system',
@@ -83,20 +107,25 @@ Reglas IMPORTANTES para las instrucciones:
           },
         ],
         'temperature': 0.75,
-        'max_tokens': 8192,
+        'max_tokens': 2500,
         'response_format': {'type': 'json_object'},
       }),
     );
 
+    print('Código de estado HTTP: ${response.statusCode}');
     if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception('Error Groq: ${error['error']?['message'] ?? response.body}');
+      print('Error Body: ${response.body}');
+      return;
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final content = data['choices'][0]['message']['content'] as String;
 
-    // Limpiar posibles bloques de código markdown
+    print('\n--- Contenido Crudo Recibido del Modelo ---');
+    print(content);
+    print('--- Fin del Contenido Crudo ---\n');
+
+    // Intentar limpiar y parsear
     String cleanedText = content.trim();
     if (cleanedText.startsWith('```json')) {
       cleanedText = cleanedText.substring(7);
@@ -108,70 +137,21 @@ Reglas IMPORTANTES para las instrucciones:
     }
     cleanedText = cleanedText.trim();
 
-    final decoded = jsonDecode(cleanedText) as Map<String, dynamic>;
-    final recetasJson = decoded['recetas'] as List<dynamic>;
-    return recetasJson.map((r) => Recipe.fromJson(r as Map<String, dynamic>)).toList();
-  }
-
-  static Future<List<String>> detectarIngredientes(List<int> imageBytes, String mimeType) async {
-    final apiKey = _getApiKey();
-    final base64Image = base64Encode(imageBytes);
-
-    final response = await http.post(
-      Uri.parse(_baseUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
-      body: jsonEncode({
-        'model': 'meta-llama/llama-4-scout-17b-16e-instruct',
-        'messages': [
-          {
-            'role': 'system',
-            'content': 'Eres un experto en gastronomía y visión por computadora. Tu tarea es analizar la imagen y detectar todos los ingredientes alimentarios crudos o cocidos presentes. Responde ÚNICAMENTE con un objeto JSON que tenga una clave "ingredientes" que contiene una lista de cadenas de texto (strings) con los nombres de los ingredientes en español, en singular y minúsculas (ej. "tomate", "cebolla", "ajo", "huevo", "pollo"). No añadas ninguna explicación, comentarios, saludos, ni rodees el JSON con bloques de código markdown.',
-          },
-          {
-            'role': 'user',
-            'content': [
-              {
-                'type': 'text',
-                'text': '¿Qué ingredientes alimentarios puedes ver en esta imagen? Responde solo con un JSON válido con la estructura: {"ingredientes": ["nombre1", "nombre2"]}',
-              },
-              {
-                'type': 'image_url',
-                'image_url': {
-                  'url': 'data:$mimeType;base64,$base64Image',
-                },
-              },
-            ],
-          },
-        ],
-        'temperature': 0.1,
-        'response_format': {'type': 'json_object'},
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception('Error Groq Vision: ${error['error']?['message'] ?? response.body}');
+    try {
+      final decoded = jsonDecode(cleanedText) as Map<String, dynamic>;
+      final recetasJson = decoded['recetas'] as List<dynamic>;
+      print('Éxito total! Se parseó correctamente. Recetas encontradas: ${recetasJson.length}');
+      for (var r in recetasJson) {
+        final nombre = r['nombre'];
+        final instCount = (r['instrucciones'] as List).length;
+        print('- Receta: $nombre | Instrucciones: $instCount pasos | Dificultad: ${r['dificultad']}');
+      }
+    } catch (e) {
+      print('Error al parsear el JSON limpio: $e');
+      print('Texto que se intentó parsear:\n$cleanedText');
     }
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final content = data['choices'][0]['message']['content'] as String;
-
-    String cleanedText = content.trim();
-    if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.substring(7);
-    } else if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.substring(3);
-    }
-    if (cleanedText.endsWith('```')) {
-      cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-    }
-    cleanedText = cleanedText.trim();
-
-    final decoded = jsonDecode(cleanedText) as Map<String, dynamic>;
-    final ingredientesJson = decoded['ingredientes'] as List<dynamic>? ?? [];
-    return ingredientesJson.map((e) => e.toString().toLowerCase().trim()).where((e) => e.isNotEmpty).toList();
+  } catch (e) {
+    print('Error en la petición HTTP: $e');
   }
 }

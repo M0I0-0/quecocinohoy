@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ingredient_chip.dart';
 import '../models/recipe.dart';
@@ -7,6 +8,7 @@ import 'results_screen.dart';
 import 'recipe_detail_screen.dart';
 import '../widgets/food_image_helper.dart';
 import '../widgets/recipe_card.dart';
+import '../widgets/scanner_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -102,6 +104,289 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _controller.dispose();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _escanearConCamara() async {
+    final ImagePicker picker = ImagePicker();
+    
+    // Show a bottom sheet to choose between camera and gallery
+    final XFile? image = await showModalBottomSheet<XFile?>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Bottom sheet drag handle
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Selecciona una imagen',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Elige el origen de la foto de tus ingredientes',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Camera button
+                  GestureDetector(
+                    onTap: () async {
+                      final nav = Navigator.of(context);
+                      final sm = ScaffoldMessenger.of(context);
+                      try {
+                        final XFile? photo = await picker.pickImage(
+                          source: ImageSource.camera,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                          imageQuality: 85,
+                        );
+                        nav.pop(photo);
+                      } catch (e) {
+                        nav.pop(null);
+                        sm.showSnackBar(
+                          SnackBar(content: Text('Error al abrir la cámara: $e')),
+                        );
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: AppColors.darkCharcoal,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.border, width: 1.2),
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, color: AppColors.volt, size: 24),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Cámara',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Gallery button
+                  GestureDetector(
+                    onTap: () async {
+                      final nav = Navigator.of(context);
+                      final sm = ScaffoldMessenger.of(context);
+                      try {
+                        final XFile? galleryPhoto = await picker.pickImage(
+                          source: ImageSource.gallery,
+                          maxWidth: 1024,
+                          maxHeight: 1024,
+                          imageQuality: 85,
+                        );
+                        nav.pop(galleryPhoto);
+                      } catch (e) {
+                        nav.pop(null);
+                        sm.showSnackBar(
+                          SnackBar(content: Text('Error al abrir la galería: $e')),
+                        );
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.border, width: 1.5),
+                          ),
+                          child: const Icon(Icons.photo_library_rounded, color: AppColors.darkCharcoal, size: 24),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Galería',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (image == null) return;
+
+    // Read the image bytes
+    final bytes = await image.readAsBytes();
+
+    if (!mounted) return;
+
+    // Open the premium scanning dialog
+    final List<String>? ingredientesDetectados = await showDialog<List<String>?>(
+      context: context,
+      barrierDismissible: false, // Must let scanner finish or press X
+      builder: (context) => ScannerDialog(
+        imageBytes: bytes,
+        imageName: image.name,
+      ),
+    );
+
+    if (ingredientesDetectados != null && ingredientesDetectados.isNotEmpty && mounted) {
+      setState(() {
+        int agregadosCount = 0;
+        for (final ing in ingredientesDetectados) {
+          final ingL = ing.toLowerCase().trim();
+          if (ingL.isNotEmpty && !_ingredientes.contains(ingL)) {
+            _ingredientes.add(ingL);
+            agregadosCount++;
+          }
+        }
+        
+        // Clear error if ingredients were successfully added
+        _error = null;
+
+        if (agregadosCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '¡Escaneo exitoso! Se agregaron $agregadosCount ingredientes nuevos 🥑',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.darkCharcoal, fontSize: 13),
+              ),
+              backgroundColor: AppColors.volt,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              action: SnackBarAction(
+                label: 'Cocinar',
+                textColor: AppColors.darkCharcoal,
+                onPressed: () {
+                  _buscarRecetas();
+                },
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Los ingredientes detectados ya estaban en tu refrigerador.',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              backgroundColor: AppColors.darkCharcoal,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          );
+        }
+      });
+    }
+  }
+
+  Widget _buildScanPremiumCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.015),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.volt,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.center_focus_strong_rounded,
+              color: AppColors.darkCharcoal,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cocina con lo que ves',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Sube una foto de tus ingredientes y la IA los detectará.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: _escanearConCamara,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.darkCharcoal,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'Escanear',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.volt),
+                ),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, size: 12, color: AppColors.volt),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _agregarIngrediente() {
@@ -212,6 +497,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildScanPremiumCard(),
         _buildInputSection(),
         if (_ingredientes.isNotEmpty) ...[
           const SizedBox(height: 18),
@@ -426,7 +712,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           icon: const Icon(Icons.clear, color: AppColors.textLight, size: 18),
                           onPressed: () => setState(() => _controller.clear()),
                         )
-                      : null,
+                      : IconButton(
+                          icon: const Icon(Icons.camera_alt_rounded, color: AppColors.textMedium, size: 20),
+                          onPressed: _escanearConCamara,
+                        ),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
